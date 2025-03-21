@@ -712,6 +712,12 @@ action:
                   {% if (b[0]+1) == item %} {% set result.value = counter.value %} {% else %} {% set counter.value = counter.value +1 %} {% endif %}
                 {% endfor %}
                 {{scene_number_actions[result.value]}}
+          - action: media_player.shuffle_set
+            metadata: {}
+            data:
+              shuffle: true
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
           - if:
               - condition: template
                 value_template: |-
