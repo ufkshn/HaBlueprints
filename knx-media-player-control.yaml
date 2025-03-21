@@ -1,0 +1,809 @@
+blueprint:
+  name: KNX - Mediaplayer Control w PlayMode
+  description: Use KNX to control a media player entity. Including Feedback from the media player to KNX
+  author: torbenledermann
+  homeassistant:
+    # `knx.telegram` trigger and `enabled` templates require Home Assistant 2024.6.0
+    min_version: "2024.6.0"
+  domain: automation
+  input:
+    __mediaplayer_entity:
+      name: Mediaplayer
+      description: The Media player entity, that should be controlled
+      selector:
+        entity:
+          filter:
+            - domain: media_player
+    playback controls:
+      collapsed: true
+      name: Playback Controls
+      input:
+        __knx_playpause_address:
+          name: Play/Pause Group Address
+          description: "[DPT 1.xx] - The Value 1 triggers the Play action. The Value 0 triggers the Pause action"
+          default: null
+        __knx_playpause_status_address:
+          name: Play/Pause Status Group Address
+          description: "[DPT 1.xx]"
+          default: null
+        __knx_forwardbackward_address:
+          name: Forward/Backward Group Address
+          description: "[DPT 1.xx] - The Value 1 triggers the Forward action. The Value 0 triggers the Backward action"
+          default: null
+    volume:
+      collapsed: true
+      name: Volume Control
+      input:
+        __knx_volume_address:
+          name: Volume Control Group Address
+          description: "[DPT 5.001 Percent] - The group address to control the volume in percent"
+          default: null
+        __knx_volume_step_address:
+          name: Volume Step Control Group Address
+          description: "[DPT 1.xxx] - The group address to control the volume in stepwise via a 1bit object"
+          default: null
+        __knx_volume_step_up_value:
+          name: Turn Up - Value
+          description: Define which Value turns up the volume
+          selector:
+            select:
+              options:
+                - "1"
+                - "0"
+          default: "1"
+        __knx_volume_step_size:
+          name: Volume Group Address
+          description: Define how much the volume should be turned up ord down with each step
+          selector:
+            number:
+              min: 0.0
+              max: 100.0
+              step: 1.0
+              mode: slider
+
+          default: 5.0
+        __knx_volume_status_address:
+          name: Volume Status Group Address
+          description: "[DPT 5.001 Percent]"
+          default: null
+        __knx_mute_address:
+          name: Mute Group Address
+          description: "[DPT 1.xx] - The Value 1 triggers the Mute action."
+          default: null
+        __knx_mute_status_address:
+          name: Mute Status Group Address
+          description: "[DPT 1.xx]"
+          default: null
+    relative_volume:
+      collapsed: true
+      name: Relative Volume Control [Dimming]
+      description: "Kudos to @kalhimeo for his 'KNX - Light entities control' Blueprint from which I inherited the code for relative dimming"
+      input:
+        __relative_helper_entity:
+          name: Helper for relative volume control
+          description:
+            "If you intend to use the relative Volume control, it is necessary
+            to manually create a 'toggle helper' specificly for this automation (don't change
+            if unused)"
+          selector:
+            entity:
+              domain:
+                - input_boolean
+              multiple: false
+          default: {}
+        __knx_relative_address:
+          name: Relative Volume Control Group Address
+          description: "[DPT 3.xx]"
+          default: null
+        __dimm_time:
+          name: Dimm time
+          description: Define how long it should take to go from 0% to 100%.
+          selector:
+            number:
+              min: 1.0
+              max: 40.0
+              step: 0.1
+              unit_of_measurement: seconds
+              mode: slider
+          default: 15
+        __dimm_steps:
+          name: Dimm steps
+          description: How many steps should be used to dimm from 0 to 100%.
+          selector:
+            number:
+              min: 2.0
+              max: 255.0
+              step: 1.0
+              unit_of_measurement: steps
+              mode: slider
+          default: 50
+
+    status:
+      collapsed: true
+      name: Status
+      input:
+        __knx_title_address:
+          name: Title Group Address
+          description: "[DPT 16.001 - String ISO8859-1] - Due to limitations with the DPT only the first 14 Characters can be displayed"
+          default: null
+        __knx_artist_address:
+          name: Artist Group Address
+          description: "[DPT 16.001 - String ISO8859-1] - Due to limitations with the DPT only the first 14 Characters can be displayed"
+          default: null
+        __knx_album_address:
+          name: Album Group Address
+          description: "[DPT 16.001 - String ISO8859-1] - Due to limitations with the DPT only the first 14 Characters can be displayed"
+          default: null
+    play mode:
+      collapsed: true
+      name: Play Mode Controls
+      input:
+        __knx_playmode_address:
+          name: Play Mode Group Address
+          description: "[DPT 1.xx] - Single Cycle Mode = 1, Order Mode = 2, Random Mode = 3"
+          default: null
+        __knx_playmode_status_address:
+          name: Play Mode Group Address
+          description: "[DPT 1.xx]"
+          default: null
+    scenes:
+      name: Scene Control
+      description:
+        "The Action to be performed with each scene depends on your media
+        player. \nFor Sonos you have to add the playlist/radio to your favourites.
+        Watch out for typos.\n"
+      collapsed: true
+      input:
+        __knx_scenes_address:
+          name: Scenes Group Address
+          description: "[DPT 17.001 - Scene Number]"
+          default:
+        __knx_scene_number1:
+          name: Scenes Number 1
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number1_action:
+          name: Scenes Number 1 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number1_volume:
+          name: Scenes Number 1 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number2:
+          name: Scenes Number 2
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number2_action:
+          name: Scenes Number 2 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number2_volume:
+          name: Scenes Number 2 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number3:
+          name: Scenes Number 3
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number3_action:
+          name: Scenes Number 3 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number3_volume:
+          name: Scenes Number 3 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number4:
+          name: Scenes Number 4
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number4_action:
+          name: Scenes Number 4 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number4_volume:
+          name: Scenes Number 4 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number5:
+          name: Scenes Number 5
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number5_action:
+          name: Scenes Number 5 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number5_volume:
+          name: Scenes Number 5 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number6:
+          name: Scenes Number 6
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number6_action:
+          name: Scenes Number 6 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number6_volume:
+          name: Scenes Number 6 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number7:
+          name: Scenes Number 7
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number7_action:
+          name: Scenes Number 7 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number7_volume:
+          name: Scenes Number 7 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+        __knx_scene_number8:
+          name: Scenes Number 8
+          description: Define which Scene Number shall be reacted to
+          selector:
+            number:
+              min: 1.0
+              max: 65.0
+              step: 1.0
+              mode: slider
+          default: 65
+        __scene_number8_action:
+          name: Scenes Number 8 Action
+          description: The Song/Playlist/Radio to be started
+          default: ""
+        __scene_number8_volume:
+          name: Scenes Number 8 Volume
+          description: Define the Volume that should be set (101 means don't change volume)
+          selector:
+            number:
+              min: 1.0
+              max: 101.0
+              step: 1.0
+              mode: slider
+          default: 101.0
+  source_url: https://gist.github.com/torbenledermann/e20c6d9d86406529e9941b71fca82935
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  mediaplayer_entity: !input __mediaplayer_entity
+  knx_playpause_address: !input __knx_playpause_address
+  knx_playpause_status_address: !input __knx_playpause_status_address
+  knx_forwardbackward_address: !input __knx_forwardbackward_address
+  knx_volume_address: !input __knx_volume_address
+  knx_volume_status_address: !input __knx_volume_status_address
+  knx_title_address: !input __knx_title_address
+  knx_album_address: !input __knx_album_address
+  knx_artist_address: !input __knx_artist_address
+  knx_mute_address: !input __knx_mute_address
+  knx_mute_status_address: !input __knx_mute_status_address
+  knx_volume_step_address: !input __knx_volume_step_address
+  knx_volume_step_up_value: !input __knx_volume_step_up_value
+  knx_volume_step_size: !input __knx_volume_step_size
+
+  knx_relative_address: !input __knx_relative_address
+  relative_helper_entity: !input __relative_helper_entity
+  _dimm_time: !input __dimm_time
+  _dimm_steps: !input __dimm_steps
+  dimm_time: "{{ _dimm_time | float(default=4) }}"
+  dimm_steps: "{{ _dimm_steps | int(default=20) }}"
+  dimm_step: "{{ (255 / dimm_steps) }}"
+  dimm_delay: "{{ dimm_time * 1000 / dimm_steps }}"
+
+
+  knx_playmode_address: !input __knx_playmode_address
+  knx_playmode_status_address: !input __knx_playmode_status_address
+
+  knx_scenes_address: !input __knx_scenes_address
+
+  knx_scene_numbers:
+    - !input __knx_scene_number1
+    - !input __knx_scene_number2
+    - !input __knx_scene_number3
+    - !input __knx_scene_number4
+    - !input __knx_scene_number5
+    - !input __knx_scene_number6
+    - !input __knx_scene_number7
+    - !input __knx_scene_number8
+  scene_number_actions:
+    - !input __scene_number1_action
+    - !input __scene_number2_action
+    - !input __scene_number3_action
+    - !input __scene_number4_action
+    - !input __scene_number5_action
+    - !input __scene_number6_action
+    - !input __scene_number7_action
+    - !input __scene_number8_action
+  scene_number_volume:
+    - !input __scene_number1_volume
+    - !input __scene_number2_volume
+    - !input __scene_number3_volume
+    - !input __scene_number4_volume
+    - !input __scene_number5_volume
+    - !input __scene_number6_volume
+    - !input __scene_number7_volume
+    - !input __scene_number8_volume
+
+trigger_variables:
+  _knx_playpause_address: !input __knx_playpause_address
+  _knx_forwardbackward_address: !input __knx_forwardbackward_address
+  _knx_volume_address: !input __knx_volume_address
+  _knx_mute_address: !input __knx_mute_address
+  _knx_volume_step_address: !input __knx_volume_step_address
+  _knx_relative_address: !input __knx_relative_address
+  _knx_playmode_address: !input __knx_playmode_address
+  _knx_scenes_address: !input __knx_scenes_address
+
+trigger:
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_playpause_address
+    id: knx_playpause
+    enabled: "{{ _knx_playpause_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_forwardbackward_address
+    id: knx_forwardbackward
+    enabled: "{{ _knx_forwardbackward_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_volume_address
+    type: percent
+    id: knx_volume
+    enabled: "{{ _knx_volume_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_volume_step_address
+    id: knx_volume_step
+    enabled: "{{ _knx_volume_step_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_mute_address
+    id: knx_mute
+    enabled: "{{ _knx_mute_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_playmode_address
+    id: knx_playmode
+    enabled: "{{ _knx_playmode_address != None }}"
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_scenes_address
+    id: knx_scenes
+    enabled: "{{ _knx_scenes_address != None }}"
+    type: scene_number
+  - platform: knx.telegram
+    group_value_response: false
+    group_value_read: false
+    outgoing: false
+    destination: !input __knx_relative_address
+    id: knx_relative
+    enabled: "{{ _knx_relative_address != None }}"
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    attribute: volume_level
+    id: sonos_volume
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    attribute: media_title
+    id: sonos_title
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    attribute: media_artist
+    id: sonos_artist
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    attribute: media_album_name
+    id: sonos_album
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    attribute: is_volume_muted
+    id: sonos_muted
+  - platform: state
+    entity_id: !input __mediaplayer_entity
+    id: sonos_state
+condition: []
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: knx_playpause
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{trigger.payload == 0}}"
+            then:
+              - action: media_player.media_pause
+                metadata: {}
+                data: {}
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
+            else:
+              - action: media_player.media_play
+                metadata: {}
+                data: {}
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
+      - conditions:
+          - condition: trigger
+            id: knx_forwardbackward
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{trigger.payload == 0}}"
+            then:
+              - action: media_player.media_previous_track
+                metadata: {}
+                data: {}
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
+            else:
+              - action: media_player.media_next_track
+                metadata: {}
+                data: {}
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
+      - conditions:
+          - condition: trigger
+            id: knx_mute
+        sequence:
+          - action: media_player.volume_mute
+            metadata: {}
+            data:
+              is_volume_muted: "{{trigger.payload == 1}}"
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
+      - conditions:
+          - condition: trigger
+            id: knx_volume
+        sequence:
+          - action: media_player.volume_set
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
+            data:
+              volume_level: "{{trigger.value * 0.01 |float}}"
+      - conditions:
+          - condition: trigger
+            id: knx_volume_step
+        sequence:
+          - action: media_player.volume_set
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
+            data:
+              volume_level: |-
+                {% if (knx_volume_step_up_value)|float == trigger.payload %}
+                  {{(state_attr(mediaplayer_entity,'volume_level') + ((knx_volume_step_size* 0.01) |float))|float}}
+                {% else %}
+                  {{(state_attr(mediaplayer_entity,'volume_level') - ((knx_volume_step_size* 0.01) |float))|float}}
+                {% endif %}
+      - conditions:
+          - condition: trigger
+            id: sonos_volume
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_volume_status_address }}"
+              type: percent
+              payload: "{{state_attr(mediaplayer_entity,'volume_level')*100}}"
+      - conditions:
+          - condition: trigger
+            id: sonos_state
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_playpause_status_address }}"
+              payload: |-
+                {% if states(mediaplayer_entity) == "playing" %}
+                1 
+                {% else %}
+                0
+                {% endif %}
+      - conditions:
+          - condition: trigger
+            id: sonos_title
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_title_address }}"
+              type: string
+              payload: "{{(state_attr(mediaplayer_entity,'media_title'))[:13]}}"
+      - conditions:
+          - condition: trigger
+            id: sonos_album
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_album_address }}"
+              type: string
+              payload: "{{(state_attr(mediaplayer_entity,'media_album_name'))[:13]}}"
+      - conditions:
+          - condition: trigger
+            id: sonos_artist
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_artist_address }}"
+              type: string
+              payload: "{{(state_attr(mediaplayer_entity,'media_artist'))[:13]}}"
+      - conditions:
+          - condition: trigger
+            id: sonos_muted
+        sequence:
+          - action: knx.send
+            data:
+              response: false
+              address: "{{ knx_mute_status_address }}"
+              payload: "{{(state_attr(mediaplayer_entity,'is_volume_muted'))}}"
+
+      - conditions:
+          - condition: trigger
+            id: knx_playmode
+        sequence:
+          - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{trigger.payload == 1}}"
+              sequence:
+                - action: media_player.repeat_set
+                  metadata: {}
+                  data:
+                    repeat: all
+                  target:
+                    entity_id: "{{ mediaplayer_entity }}"
+            - conditions:
+                - condition: template
+                  value_template: "{{trigger.payload == 2}}"
+              sequence:
+                - action: media_player.repeat_set
+                  metadata: {}
+                  data:
+                    repeat: "off"
+                  target:
+                    entity_id: "{{ mediaplayer_entity }}"
+                - action: media_player.shuffle_set
+                  metadata: {}
+                  data:
+                    shuffle: false
+                  target:
+                    entity_id: "{{ mediaplayer_entity }}"
+            - conditions:
+                - condition: template
+                  value_template: "{{trigger.payload == 3}}"
+              sequence:
+                - action: media_player.shuffle_set
+                  metadata: {}
+                  data:
+                    shuffle: true
+                  target:
+                    entity_id: "{{ mediaplayer_entity }}"
+
+      - conditions:
+          - condition: trigger
+            id: knx_scenes
+          - condition: template
+            value_template: |-
+              {% set a = knx_scene_numbers %}
+              {% set b = trigger.payload %}
+              {% set result = namespace(value=false) %}
+              {% for item in a %}
+                {% if (b[0]+1) == item %} {% set result.value = true %} {% endif %}
+              {% endfor %}
+              {{result.value}}
+        sequence:
+          - action: media_player.select_source
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
+            data:
+              source: |-
+                {% set a = knx_scene_numbers %}
+                {% set b = trigger.payload %}
+                {% set result = namespace(value=false) %}
+                {% set counter = namespace(value=0) %}
+                {% for item in a %}
+                  {% if (b[0]+1) == item %} {% set result.value = counter.value %} {% else %} {% set counter.value = counter.value +1 %} {% endif %}
+                {% endfor %}
+                {{scene_number_actions[result.value]}}
+          - if:
+              - condition: template
+                value_template: |-
+                  {% set a = knx_scene_numbers %}
+                  {% set b = trigger.payload %}
+                  {% set result = namespace(value=false) %}
+                  {% set counter = namespace(value=0) %}
+                  {% for item in a %}
+                    {% if (b[0]+1) == item %} {% set result.value = counter.value %} {% else %} {% set counter.value = counter.value +1 %} {% endif %}
+                  {% endfor %}
+                  {{scene_number_volume[result.value] <= 100}}
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
+                data:
+                  volume_level: |-
+                    {% set a = knx_scene_numbers %}
+                    {% set b = trigger.payload %}
+                    {% set result = namespace(value=false) %}
+                    {% set counter = namespace(value=0) %}
+                    {% for item in a %}
+                      {% if (b[0]+1) == item %} {% set result.value = counter.value %} {% else %} {% set counter.value = counter.value +1 %} {% endif %}
+                    {% endfor %}
+                    {{scene_number_volume[result.value]*0.01 |float}}
+      - conditions:
+          - condition: trigger
+            id: knx_relative
+          - condition: template
+            value_template: "{{ not not relative_helper_entity }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ trigger.payload == 0  or trigger.payload
+                      == 8 }}"
+                sequence:
+                  - service: input_boolean.turn_on
+                    data: {}
+                    target:
+                      entity_id: !input __relative_helper_entity
+              - conditions:
+                  - condition: template
+                    value_template: "{{ 9 <= trigger.payload <= 15 }}"
+                sequence:
+                  - service: input_boolean.turn_off
+                    data: {}
+                    target:
+                      entity_id: !input __relative_helper_entity
+                  - repeat:
+                      while:
+                        - condition: state
+                          entity_id: !input __relative_helper_entity
+                          state: "off"
+                        - condition: template
+                          value_template: "{{ repeat.index <= dimm_steps }}"
+                      sequence:
+                        - action: media_player.volume_set
+                          target:
+                            entity_id: "{{ mediaplayer_entity }}"
+                          data:
+                            volume_level: "{{(state_attr(mediaplayer_entity,'volume_level') + ((dimm_step* 0.01) |float))|float}}"
+                        - delay:
+                            milliseconds: "{{ dimm_delay |float }}"
+                  - service: input_boolean.turn_off
+                    data: {}
+                    target:
+                      entity_id: !input __relative_helper_entity
+              - conditions:
+                  - condition: template
+                    value_template: "{{ 1 <= trigger.payload <= 7 }}"
+                sequence:
+                  - service: input_boolean.turn_off
+                    data: {}
+                    target:
+                      entity_id: !input __relative_helper_entity
+                  - repeat:
+                      while:
+                        - condition: state
+                          entity_id: !input __relative_helper_entity
+                          state: "off"
+                        - condition: template
+                          value_template: "{{ repeat.index <= dimm_steps }}"
+                      sequence:
+                        - action: media_player.volume_set
+                          target:
+                            entity_id: "{{ mediaplayer_entity }}"
+                          data:
+                            volume_level: "{{(state_attr(mediaplayer_entity,'volume_level') - ((dimm_step* 0.01) |float))|float}}"
+                        - delay:
+                            milliseconds: "{{ dimm_delay |float }}"
+                  - service: input_boolean.turn_off
+                    data: {}
+                    target:
+                      entity_id: !input __relative_helper_entity
