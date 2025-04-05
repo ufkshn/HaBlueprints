@@ -704,6 +704,11 @@ action:
               {% endfor %}
               {{result.value}}
         sequence:
+          - action: media_player.unjoin
+            metadata: {}
+            data: {}
+            target:
+              entity_id: "{{ mediaplayer_entity }}"
           - action: media_player.select_source
             target:
               entity_id: "{{ mediaplayer_entity }}"
