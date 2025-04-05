@@ -523,6 +523,11 @@ action:
                 target:
                   entity_id: "{{ mediaplayer_entity }}"
             else:
+              - action: media_player.unjoin
+                metadata: {}
+                data: {}
+                target:
+                  entity_id: "{{ mediaplayer_entity }}"
               - action: media_player.media_play
                 metadata: {}
                 data: {}
